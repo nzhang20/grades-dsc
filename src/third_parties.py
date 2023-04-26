@@ -59,6 +59,63 @@ class Slido(Gradebook):
         ) * 1
 
 
+class WebClicker(Gradebook):
+    """
+    Online lecture participation polls conducted on WebClicker
+
+    Canvas Assignment Group (Default): Participation
+    Credit per Lecture: 1
+    Processed File Location (Default): `./processed/webclicker`
+    """
+    info_cols = ['Email', 'Last Name', 'First Name', 'Student Identifier']
+
+    def __init__(
+        self, course, students, staff, email_records,
+        file_name, assignment_name,
+        dir_name='webclicker',
+        assignment_group='Participation'
+    ):
+        super().__init__(
+            course, students, staff, email_records,
+            file_name, assignment_name,
+            dir_name=dir_name,
+            assignment_group=assignment_group,
+            assignment_points=1
+        )
+
+    def convert_raw(self, session=None, **kwargs):
+        """
+        An csv format spreadsheet with answer records for each question
+        """
+        if session is None:
+            print("Session Number Required, Retry")
+            return
+        
+        self.gradebook = pd.read_csv(self.file_name).iloc[1:, :-1]
+        start_col = self.gradebook.columns.get_loc(f'Session {session}')
+        if f'Session {session + 1}' in self.gradebook.columns:
+            end_col = self.gradebook.columns.get_loc(f'Session {session + 1}')
+        else:
+            end_col = self.gradebook.shape[1]
+        session_cols = self.gradebook.columns[start_col:end_col].tolist()
+        self.gradebook = (
+            self.gradebook[WebClicker.info_cols + session_cols]
+            .rename(columns={'Email': "typed_email"})
+        )
+
+    def compute_grade(self, min_poll=0.75, **kwargs):
+        """
+        With n questions polled, each student is expected to answer at least 75%
+        to get credit for that lecture
+        """
+        self.gradebook[self.assignment_name] = (
+            self.gradebook
+            .drop(columns=['typed_email'] + WebClicker.info_cols[1:])
+            .isna()
+            .mean(axis=1) <= (1 - min_poll)
+        ) * 1
+
+
 class Zybook(Gradebook):
     """
     Zybook activities, including Participation, Challenge, ZyLab.
