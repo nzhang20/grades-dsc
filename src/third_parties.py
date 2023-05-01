@@ -283,11 +283,6 @@ class Gradescope(Gradebook):
         }).fillna(0)
         self.gradebook[self.assignment_name] = self.gradebook['assignment_score']
 
-        # process email errors
-        self.gradebook['Email'] = self.gradebook['Email'].apply(
-            lambda s: self.email_records[s] if s in self.email_records else s
-        )
-
         # find lateness
         def late_category(s, policy):
             for category, factor in policy.items():
@@ -341,6 +336,11 @@ class Gradescope(Gradebook):
                 sec[['Email', name]], 
                 on='Email'
             )
+        
+        # process email errors
+        self.gradebook['Email'] = self.gradebook['Email'].apply(
+            lambda s: self.email_records[s] if s in self.email_records else s
+        )
         
         # consistent
         self.gradebook = self.gradebook.rename(columns={'Email': 'email'})
