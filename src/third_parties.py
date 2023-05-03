@@ -273,8 +273,9 @@ class Gradescope(Gradebook):
         """
         # load
         self.gradebook = pd.read_csv(self.file_name)
-        self.lateness = pd.read_csv(self.lateness_file)
-        self.lateness = self.lateness[self.lateness['Assignment Submission ID'].str.isnumeric()]
+        if self.lateness_policy is not None:
+            self.lateness = pd.read_csv(self.lateness_file)
+            self.lateness = self.lateness[self.lateness['Assignment Submission ID'].str.isnumeric()]
         self.other_sections = {name: pd.read_csv(fp) for name, fp in self.other_section_files.items()}
 
         # find columns
