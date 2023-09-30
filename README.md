@@ -1,7 +1,7 @@
 ## DSC Courses: Assignment Grades
 A general framework to use automated pipelines to enter grades into the Canvas Gradebook according to the Canvas roster. Developed for Data Science Courses at University of California, San Diego.
 
-Author: Yacun Wang, April 2023
+Author: Yacun Wang, September 2023
 
 ---
 ### General Information
@@ -141,6 +141,8 @@ grades_dsc/
     - `lateness_policy`: `penalty` or `slip_day`
       - If `slip_day`, specify `total_slip_days` in the constructor
     - `lateness_file`: `str`, file name of the lateness question; set to `None` if no lateness needed; default `None`
+    - `redemption_file`: `str`, file name of the redemption assignment; set to `None` if no redemption needed; default `None`
+    - `redemption_rate`: `float`, the portion of lost point that could be redeemed; must be between 0 and 1 (right inclusive) if `redemption_file` is not `None`
     - `other_section_files`: `dict`, where keys will be used as column names and values are corresponding section file names; default `None`
   - Default Behaviors:
     - `dir_name`: `'homework'`
@@ -162,8 +164,15 @@ grades_dsc/
     - **Option 2**: Slip Days
       - Constructor: Specify `lateness_policy='slip_day'` and `total_slip_days`. The latter is required for the first time only, but is recommended to keep it throughout the quarter;
       - Call the method `process_slip_day` after `enter_grades`. This will create a separate slip day assignment in the `homework` section if it doesn't exist yet, updates slip days in the assignment accordingly, leaving comments to students.
-    
+      - *Special*: If `assignment_group` is `'Project'`, then the slip day assignment will be found in `Homework` group for consistency
+      - *Special*: If a student only submits redemption but no regular assignment, a slip day will be applied for fairness to other students
+  - **Important**: Redemption Management
+    - Redemption applies to autograded parts only; please define manual deductions or addition parts to include either of the keywords, case sensitive:
+      - `'Manual Check'`
+      - `'Extra Credit'`
+    - Contact the author if more keywords are needed
 
+    
 #### Run Pipeline
 - General Procedure
   - Run all cells in `Setup`
