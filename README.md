@@ -13,7 +13,7 @@ Author: Yacun Wang, April 2023
   - `numpy`
   - `pandas`
 - Canvas Administrative Access (TA or Instructor)
-- Administrative Access to third-party sites
+- Administrative Access to third-party sites, or files exported
 
 #### Pipeline Notebook Content
 - **Setup**: 
@@ -47,6 +47,7 @@ grades_dsc/
 ---
 ### New Course Setup
 
+- Create the `.info` directory, the `canvas_credentials.json` and `email_records.json` as empty JSON files
 - Get Canvas course ID: `https://canvas.ucsd.edu/courses/<course_id>`
 - Get Canvas API Key (if you don't have an unexpired one):
   - Log into Canvas, find `Account` on the left menu
@@ -56,8 +57,8 @@ grades_dsc/
 - Create a new assignment group:
   - Manually navigate to your course, select `Assignments`
   - Use the top right button `+ Group` to create a new assignment group. This will be the `assignment_group` argument passed into the constructor of your desired assignment
-- Put course ID and API key into `.info/canvas_credentials.json`.
-- Finally, obtain a CSV of staff information of the following format, and place the file path in the staff profiles cell.
+- Put course ID and API key into `.info/canvas_credentials.json` in the `'COURSE_ID'` and `'API_KEY'` keys, respectively.
+- Finally, obtain a CSV of staff information of the following format, and place the file path in the staff profiles cell. If staff mixed in gradebook is fine for you, define `STAFF = []` in place of the `STAFF` cell.
 
 | First Name | Last Name | Email        | PID (Optional) |
 | ---------- | --------- | ------------ | -------------- | 
@@ -109,7 +110,15 @@ grades_dsc/
     - `assignment_group`: `'Lecture Participation'`
     - `assignment_points`: `1`
     - `due_time`: `None` (no change)
-  - Grading Rubric: Gets 1 point if answered at least `min_poll` (default 0.75) of the polls, otherwise 0 points. Pass in other values of `min_poll` to the `compute_grade` function
+  - Grading Rubric: Gets 1 point if answered at least `min_poll` (default 0.75) of the polls, otherwise 0 points. Pass in other values of `min_poll` to the `create_gradebook` (or more specifically `compute_grade`) function
+- `WebClicker` class: Defined in `third_parties.py`
+  - Default Behaviors:
+    - `dir_name`: `'webclicker'`
+    - `assignment_group`: `'Participation'`
+    - `assignment_points`: `1`
+    - `due_time`: `None` (no change)
+  - Required Configuration: `session`, pass in session number for the lecture you're processing
+  - Grading Rubric: Gets 1 point if answered at least `min_poll` (default 0.75) of the polls, otherwise 0 points. Pass in other values of `min_poll` to the `create_gradebook` (or more specifically `compute_grade`) function
 - `Zybook` class: Defined in `third_parties.py`
   - Default Behaviors:
     - `dir_name`: `'readings'`
