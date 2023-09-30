@@ -273,6 +273,9 @@ class Gradescope(Gradebook):
             else other_section_files
         )
 
+        if assignment_group == 'Project':
+            self.slip_day_group_id = self.find_assignment_group_id(force_other_group='Homework')
+
     def convert_raw(self, **kwargs):
         """
         Pick out assignment-related columns from csv.
@@ -521,7 +524,12 @@ class Gradescope(Gradebook):
         """
         Finds the slip day assignment, or creates it if not existent
         """
-        works = self.course.get_assignments_for_group(assignment_group=self.assignment_group_id)
+        use_group_id = (
+            self.slip_day_group_id 
+            if hasattr(self, 'slip_day_group_id') 
+            else self.assignment_group_id
+        )
+        works = self.course.get_assignments_for_group(assignment_group=use_group_id)
         for work in works:
             if work.name == 'Slip Day Usage':
                 return work
@@ -533,7 +541,7 @@ class Gradescope(Gradebook):
             'notify_of_update': True,
             'points_possible': self.total_slip_days,
             'published': True,
-            'assignment_group_id': self.assignment_group_id,
+            'assignment_group_id': use_group_id,
             'omit_from_final_grade': True,
             'description': open('src/slip_day_description.txt', 'r').read().strip()
         })
