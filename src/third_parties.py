@@ -98,16 +98,24 @@ class WebClicker(Gradebook):
         else:
             end_col = self.gradebook.shape[1]
         session_cols = self.gradebook.columns[start_col:end_col].tolist()
+        
+        # replace values starting with 'X' with NaN
+        self.gradebook[session_cols] = (
+            self.gradebook[session_cols]
+            .replace(to_replace = r'X[A-Z]', value = np.nan, regex = True)
+        )
+        
         self.gradebook = (
             self.gradebook[WebClicker.info_cols + session_cols]
             .rename(columns={'Email': "typed_email"})
         )
 
-    def compute_grade(self, min_poll=0.75, **kwargs):
+    def compute_grade(self, min_poll=0.5, **kwargs):
         """
         With n questions polled, each student is expected to answer at least 75%
         to get credit for that lecture
         """
+        
         self.gradebook[self.assignment_name] = (
             self.gradebook
             .drop(columns=['typed_email'] + WebClicker.info_cols[1:])
