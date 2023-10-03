@@ -249,6 +249,8 @@ class Gradescope(Gradebook):
         lateness_policy=None,
         lateness_file=None,
         total_slip_days=None,
+        redemption_file=None,
+        redemption_rate=0.8,
         other_section_files=None,
         dir_name='homework',
         assignment_group='Homework',
@@ -267,34 +269,40 @@ class Gradescope(Gradebook):
             lateness_policy is None or 
             lateness_policy.lower() in ['penalty', 'slip_day']
         )
+        assert redemption_rate is not None and  0 < redemption_rate <= 1
+
         self.lateness_policy = lateness_policy
         self.lateness_file = lateness_file
+        self.redemption_file = redemption_file
+        self.redemption_rate = redemption_rate
         self.total_slip_days = total_slip_days
         self.other_section_files = (
             {} if other_section_files is None
             else other_section_files
         )
 
+        if assignment_group == 'Project':
+            self.slip_day_group_id = self.find_assignment_group_id(force_other_group='Homework')
+
     def convert_raw(self, **kwargs):
         """
         Pick out assignment-related columns from csv.
         """
         # load
-        self.gradebook = pd.read_csv(self.file_name)
-        self.lateness = pd.read_csv(self.lateness_file)
-        self.lateness = self.lateness[self.lateness['Assignment Submission ID'].str.isnumeric()]
+        self.raw_gradebook = pd.read_csv(self.file_name)
+        if self.lateness_policy is not None:
+            self.lateness = pd.read_csv(self.lateness_file)
+            self.lateness = self.lateness[self.lateness['Assignment Submission ID'].str.isnumeric()]
+        if self.redemption_file is not None:
+            self.redemption = pd.read_csv(self.redemption_file)
+            
         self.other_sections = {name: pd.read_csv(fp) for name, fp in self.other_section_files.items()}
 
         # find columns
-        self.gradebook = self.gradebook[['Email', 'Total Score']].rename(columns={
+        self.gradebook = self.raw_gradebook[['Email', 'Total Score']].rename(columns={
             'Total Score': 'assignment_score'
         }).fillna(0)
         self.gradebook[self.assignment_name] = self.gradebook['assignment_score']
-
-        # process email errors
-        self.gradebook['Email'] = self.gradebook['Email'].apply(
-            lambda s: self.email_records[s] if s in self.email_records else s
-        )
 
         # find lateness
         def late_category(s, policy):
@@ -341,6 +349,47 @@ class Gradescope(Gradebook):
                 on='Email'
             )
 
+            self.gradebook['slip_day'] = self.gradebook['slip_day'].fillna(0)
+
+        # find redemption
+        if self.redemption_file is not None:
+            autograded_sec = ['Email', 'Autograder', 'Manual Check', 'Extra Credit']
+            get_autograded = lambda df: list(filter(
+                lambda col: any(sec in col for sec in autograded_sec), 
+                df.columns
+            ))
+
+            ## old autograded part
+            old_sec = self.raw_gradebook[get_autograded(self.raw_gradebook)].fillna(0)
+            old_sec['old_autograded'] = old_sec.sum(axis=1, numeric_only=True)
+
+            ## new autograded part
+            new_sec = (
+                self.redemption[['Total Score'] + get_autograded(self.redemption)]
+                .dropna()
+                .rename(columns={'Total Score': 'new_autograded'})
+            )
+
+            ## merge and compare
+            self.redemption_results = old_sec.merge(
+                new_sec, 
+                how='left', 
+                on='Email', 
+                suffixes=('_old', '_new')
+            ).fillna(0)
+
+            self.redemption_results['redemption'] = self.redemption_results.apply(
+                lambda df: max(0, 
+                    (df['new_autograded'] - df['old_autograded']) * self.redemption_rate
+                ), axis=1
+            )
+
+            self.gradebook = self.gradebook.merge(
+                self.redemption_results[['Email', 'redemption']],
+                how='outer',  # handle students only with redemption
+                on='Email'
+            )
+
         # find other sections
         for name, sec in self.other_sections.items():
             sec = sec[['Email', 'Total Score']].copy()
@@ -350,6 +399,11 @@ class Gradescope(Gradebook):
                 on='Email'
             )
         
+        # process email errors
+        self.gradebook['Email'] = self.gradebook['Email'].apply(
+            lambda s: self.email_records[s] if s in self.email_records else s
+        )
+        
         # consistent
         self.gradebook = self.gradebook.rename(columns={'Email': 'email'})
 
@@ -358,19 +412,31 @@ class Gradescope(Gradebook):
         """
         Applies late penalty or extra credit labelled as different assignment.
         """
-        # process lateness
+        # process redemption
+        if self.redemption_file is not None:
+            self.gradebook[self.assignment_name] = (
+                self.gradebook[self.assignment_name].fillna(0) + 
+                self.gradebook['redemption']
+            )
+
+            # special: use slip day if only redemption found
+            self.gradebook.loc[(
+                (self.gradebook['assignment_score'].isna()) & 
+                (self.gradebook['redemption'] > 0)
+            ), 'slip_day'] = 1
+
+        # process lateness penalty (NOTE: after adding raw redemption)
         if self.lateness_policy == 'penalty':     
             self.gradebook[self.assignment_name] *= self.gradebook['late_factor']
         
-        # process other sections
+        # process other sections (NOTE: after applying penalty)
         for name in self.other_sections:
             self.gradebook[self.assignment_name] += self.gradebook[name]
 
 
     def create_gradebook(self, **kwargs):
         """
-        Based on dataframe and grading rubric, create gradebook with student
-        score and answer history
+        Based on dataframe and grading rubric, create full student gradebook
         """
         # create record
         self.convert_raw(**kwargs)
@@ -394,6 +460,11 @@ class Gradescope(Gradebook):
             os.mkdir(f'processed/{self.dir_name}')
         
         self.gradebook.to_csv(f'processed/{self.dir_name}/{proc_name}.csv')
+
+        # optional: save redemption file
+        if self.redemption_file is not None:
+            self.redemption_results.to_csv(f'processed/{self.dir_name}/{proc_name}_redemption.csv', index=False)
+
         return self.gradebook
     
 
@@ -461,7 +532,12 @@ class Gradescope(Gradebook):
         """
         Finds the slip day assignment, or creates it if not existent
         """
-        works = self.course.get_assignments_for_group(assignment_group=self.assignment_group_id)
+        use_group_id = (
+            self.slip_day_group_id 
+            if hasattr(self, 'slip_day_group_id') 
+            else self.assignment_group_id
+        )
+        works = self.course.get_assignments_for_group(assignment_group=use_group_id)
         for work in works:
             if work.name == 'Slip Day Usage':
                 return work
@@ -473,7 +549,7 @@ class Gradescope(Gradebook):
             'notify_of_update': True,
             'points_possible': self.total_slip_days,
             'published': True,
-            'assignment_group_id': self.assignment_group_id,
+            'assignment_group_id': use_group_id,
             'omit_from_final_grade': True,
             'description': open('src/slip_day_description.txt', 'r').read().strip()
         })
