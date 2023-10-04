@@ -39,17 +39,18 @@ class Gradebook:
         # processed
         self.gradebook = None        
         
-    def find_assignment_group_id(self, force_other_group=None):
+    def find_assignment_group_id(self):
         """
         Finds the group ID shown on Canvas.
         """
-        use_name = self.assignment_group_name if force_other_group is not None else force_other_group
         for group in self.course.get_assignment_groups():
-            if group.name == self.use_name:
+            if group.name == self.assignment_group_name:
                 return group.id
         
         # create new group
-        new_group = self.course.create_assignment_group(**{'name': use_name}) 
+        new_group = self.course.create_assignment_group(**{
+            'name': self.assignment_group_name
+        }) 
         return new_group.id
     
     def convert_raw(self, **kwargs):
