@@ -104,18 +104,17 @@ class WebClicker(Gradebook):
             self.gradebook[session_cols]
             .replace(to_replace = r'X[A-Z]', value = np.nan, regex = True)
         )
-        
+
         self.gradebook = (
             self.gradebook[WebClicker.info_cols + session_cols]
             .rename(columns={'Email': "typed_email"})
         )
 
-    def compute_grade(self, min_poll=0.5, **kwargs):
+    def compute_grade(self, min_poll=0.75, **kwargs):
         """
         With n questions polled, each student is expected to answer at least 75%
         to get credit for that lecture
         """
-        
         self.gradebook[self.assignment_name] = (
             self.gradebook
             .drop(columns=['typed_email'] + WebClicker.info_cols[1:])
