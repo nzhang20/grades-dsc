@@ -16,7 +16,7 @@ class Gradebook:
     
     def __init__(
         self, course, students, staff, email_records,
-        file_name, assignment_name, dir_name, 
+        file_name, assignment_name, dir_name, use_geo,
         assignment_group, assignment_points, due_time=None
     ):
         # names
@@ -31,6 +31,7 @@ class Gradebook:
         self.email_records = email_records
         
         # assignment details
+        self.use_geo = use_geo
         self.assignment_group_name = assignment_group
         self.assignment_group_id = self.find_assignment_group_id()
         self.assignment_points = assignment_points

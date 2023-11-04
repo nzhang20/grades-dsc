@@ -71,17 +71,18 @@ class WebClicker(Gradebook):
 
     def __init__(
         self, course, students, staff, email_records,
-        file_name, assignment_name,
+        file_name, assignment_name, use_geo=True,
         dir_name='webclicker',
-        assignment_group='Participation',
-        use_geo = True
+        assignment_group='Participation'
     ):
         super().__init__(
             course, students, staff, email_records,
-            file_name, assignment_name,
+            file_name, assignment_name, 
+            use_geo=use_geo,
             dir_name=dir_name,
             assignment_group=assignment_group,
             assignment_points=1
+            
         )
 
     def convert_raw(self, session=None, **kwargs):
@@ -97,7 +98,7 @@ class WebClicker(Gradebook):
         if f'Session {session + 1}' in self.gradebook.columns:
             end_col = self.gradebook.columns.get_loc(f'Session {session + 1}')
         else:
-            end_col = self.gradebook.shape[1]
+            end_col = self.gradebook.shape[1] 
         session_cols = self.gradebook.columns[start_col:end_col].tolist()
         
         if self.use_geo:
