@@ -73,7 +73,8 @@ class WebClicker(Gradebook):
         self, course, students, staff, email_records,
         file_name, assignment_name,
         dir_name='webclicker',
-        assignment_group='Participation'
+        assignment_group='Participation',
+        use_geo = True
     ):
         super().__init__(
             course, students, staff, email_records,
@@ -99,11 +100,12 @@ class WebClicker(Gradebook):
             end_col = self.gradebook.shape[1]
         session_cols = self.gradebook.columns[start_col:end_col].tolist()
         
-        # replace values starting with 'X' with NaN
-        self.gradebook[session_cols] = (
-            self.gradebook[session_cols]
-            .replace(to_replace = r'X[A-Z]', value = np.nan, regex = True)
-        )
+        if self.use_geo:
+            # replace values starting with 'X' with NaN
+            self.gradebook[session_cols] = (
+                self.gradebook[session_cols]
+                .replace(to_replace = r'X[A-Z]', value = np.nan, regex = True)
+            )
 
         self.gradebook = (
             self.gradebook[WebClicker.info_cols + session_cols]
