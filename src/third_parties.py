@@ -105,7 +105,7 @@ class WebClicker(Gradebook):
             # replace values starting with 'X' with NaN
             self.gradebook[session_cols] = (
                 self.gradebook[session_cols]
-                .replace(to_replace = r'X[A-Z]', value = np.nan, regex = True)
+                .replace(to_replace = r'G[A-Z]', value = np.nan, regex = True)
             )
 
         self.gradebook = (
